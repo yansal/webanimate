@@ -58,16 +58,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		g.Image = append(g.Image, img.(*image.Paletted))
+		paletted, ok := img.(*image.Paletted)
+		if !ok {
+			paletted, err = convertToGIF(img)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		g.Image = append(g.Image, paletted)
 		g.Delay = append(g.Delay, 20)
 	}
-	buf := new(bytes.Buffer)
-	if err := gif.EncodeAll(buf, &g); err != nil {
+
+	var buf bytes.Buffer
+	if err := gif.EncodeAll(&buf, &g); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	url, err := upload(fname, buf)
+	url, err := upload(fname, &buf)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -83,6 +92,18 @@ func readImage(fh *multipart.FileHeader) (image.Image, error) {
 	defer f.Close()
 	img, _, err := image.Decode(f)
 	return img, err
+}
+
+func convertToGIF(img image.Image) (*image.Paletted, error) {
+	var buf bytes.Buffer
+	if err := gif.Encode(&buf, img, nil); err != nil {
+		return nil, err
+	}
+	img, _, err := image.Decode(&buf)
+	if err != nil {
+		return nil, err
+	}
+	return img.(*image.Paletted), nil
 }
 
 func upload(fname string, content io.Reader) (string, error) {
