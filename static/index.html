@@ -1,4 +1,35 @@
-<form action="/upload" method="POST" enctype="multipart/form-data">
-    <input type="file" accept="image/*" multiple name="files">
-    <button>Upload</button>
+<script>
+    function ajaxSubmit(form) {
+        var req = new XMLHttpRequest();
+        req.upload.onprogress = function (event) {
+            document.getElementById("gif").hidden = true;
+            percent = event.loaded / event.total * 100;
+            document.getElementById("status").textContent = percent.toFixed(0) + '% uploaded';
+        };
+        req.onload = function () {
+            if (this.status != 200) {
+                document.getElementById("status").textContent = this.responseText;
+                return;
+            }
+            gif = document.getElementById("gif")
+            gif.src = this.responseText;
+            gif.hidden = false;
+            document.getElementById("status").textContent = ''
+        };
+        req.open(form.method, form.action);
+        req.send(new FormData(form));
+        return false;
+    }
+</script>
+
+
+<form method="post" action="/upload/" enctype="multipart/form-data">
+    <fieldset>
+        <legend>Select two or more images</legend>
+        <input type="file" multiple accept="image/*" name="images[]" onchange="return ajaxSubmit(this.form)">
+    </fieldset>
 </form>
+
+<span id="status"></span>
+
+<img id="gif" hidden>
